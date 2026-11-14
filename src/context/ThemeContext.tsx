@@ -1,44 +1,19 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { palettes, ThemeColors, ThemeMode } from '../theme/colors';
 
-export type ThemeMode = 'light' | 'dark';
-
-interface ThemeColors {
-  background: string;
-  card: string;
-  text: string;
-  subtitle: string;
-  border: string;
-  primary: string;
-}
-
-const lightColors: ThemeColors = {
-  background: '#f2f2f2',
-  card: '#ffffff',
-  text: '#222222',
-  subtitle: '#666666',
-  border: '#dddddd',
-  primary: '#2196f3',
-};
-
-const darkColors: ThemeColors = {
-  background: '#121212',
-  card: '#1e1e1e',
-  text: '#f0f0f0',
-  subtitle: '#aaaaaa',
-  border: '#333333',
-  primary: '#64b5f6',
-};
-
-interface ThemeContextValue {
+export interface ThemeContextValue {
   theme: ThemeMode;
   colors: ThemeColors;
   setTheme: (theme: ThemeMode) => void;
 }
 
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+export const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+
 const THEME_STORAGE_KEY = '@campus-planner/theme';
+
+const isThemeMode = (value: string | null): value is ThemeMode => value === 'light' || value === 'dark';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>('light');
@@ -49,9 +24,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         const saved = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (isMounted && (saved === 'light' || saved === 'dark')) {
-          setThemeState(saved);
-        }
+        if (isMounted && isThemeMode(saved)) setThemeState(saved);
       } catch (error) {
         console.warn('Не удалось загрузить тему', error);
       } finally {
@@ -63,32 +36,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const setTheme = (newTheme: ThemeMode) => {
+  const setTheme = useCallback((newTheme: ThemeMode) => {
     setThemeState(newTheme);
-    AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme).catch((error) => {
+    AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme).catch((error: unknown) => {
       console.warn('Не удалось сохранить тему', error);
     });
-  };
+  }, []);
+
+  const value = useMemo<ThemeContextValue>(
+    () => ({ theme, colors: palettes[theme], setTheme }),
+    [theme, setTheme]
+  );
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f2f2f2' }}>
-        <ActivityIndicator size="large" />
+      <View
+        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: palettes.light.background }}
+      >
+        <ActivityIndicator size="large" color={palettes.light.primary} />
       </View>
     );
   }
 
-  const colors = theme === 'dark' ? darkColors : lightColors;
-
-  return (
-    <ThemeContext.Provider value={{ theme, colors, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
-}
-
-export function useTheme() {
-  const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
-  return ctx;
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

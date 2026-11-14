@@ -1,71 +1,106 @@
-import React from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTasks } from '../src/context/TasksContext';
-import { useTheme } from '../src/context/ThemeContext';
-import TaskCard from '../src/components/TaskCard';
+import TaskCard from '../src/components/task/TaskCard';
+import TaskStatsBar from '../src/components/task/TaskStatsBar';
+import AppButton from '../src/components/ui/AppButton';
+import AppInput from '../src/components/ui/AppInput';
+import EmptyState from '../src/components/ui/EmptyState';
+import Screen from '../src/components/ui/Screen';
+import SegmentedControl, { SegmentOption } from '../src/components/ui/SegmentedControl';
+import { useTasks } from '../src/hooks/useTasks';
+import { useTheme } from '../src/hooks/useTheme';
+import { fontSize, spacing } from '../src/theme/spacing';
+import { routes } from '../src/types/navigation';
+import { TaskStatusFilter } from '../src/types/task';
+import { countTasks, selectVisibleTasks, statusFilterLabels, taskStatusFilters } from '../src/utils/task';
+
+const statusOptions: SegmentOption<TaskStatusFilter>[] = taskStatusFilters.map((status) => ({
+  value: status,
+  label: statusFilterLabels[status],
+}));
 
 export default function TaskListScreen() {
   const router = useRouter();
   const { tasks } = useTasks();
   const { colors } = useTheme();
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<TaskStatusFilter>('all');
 
-  const completedCount = tasks.filter((task) => task.isCompleted).length;
+  const stats = useMemo(() => countTasks(tasks), [tasks]);
+  const visibleTasks = useMemo(() => selectVisibleTasks(tasks, { search, status }), [tasks, search, status]);
+
+  const resetFilters = () => {
+    setSearch('');
+    setStatus('all');
+  };
+
+  const emptyState =
+    tasks.length === 0 ? (
+      <EmptyState
+        icon="📋"
+        title="Список пока пуст"
+        description="Добавьте первую задачу, чтобы ничего не забыть."
+        actionLabel="Добавить задачу"
+        onAction={() => router.push(routes.newTask)}
+      />
+    ) : (
+      <EmptyState
+        icon="🔍"
+        title="Ничего не найдено"
+        description="Попробуйте изменить запрос или фильтр."
+        actionLabel="Сбросить фильтры"
+        onAction={resetFilters}
+      />
+    );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.headerRow}>
-        <Text style={[styles.header, { color: colors.text }]}>Campus Planner</Text>
-        <TouchableOpacity onPress={() => router.push('/settings')}>
-          <Text style={{ color: colors.primary, fontWeight: '600' }}>Настройки</Text>
-        </TouchableOpacity>
-      </View>
+    <Screen padded={false}>
+      <View style={styles.controls}>
+        <View style={styles.headerRow}>
+          <Text style={[styles.header, { color: colors.text }]}>Campus Planner</Text>
+          <AppButton title="Настройки" variant="secondary" size="sm" onPress={() => router.push(routes.settings)} />
+        </View>
 
-      <View style={styles.statsRow}>
-        <Text style={{ color: colors.text, fontWeight: '600' }}>Всего задач: {tasks.length}</Text>
-        <Text style={{ color: colors.text, fontWeight: '600' }}>Выполнено: {completedCount}</Text>
-      </View>
+        <TaskStatsBar stats={stats} />
 
-      <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: colors.primary }]}
-        onPress={() => router.push('/task/new')}
-      >
-        <Text style={styles.addButtonText}>+ Добавить задачу</Text>
-      </TouchableOpacity>
+        <AppButton title="+ Добавить задачу" onPress={() => router.push(routes.newTask)} style={styles.addButton} />
+
+        <AppInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Поиск по названию или предмету"
+          accessibilityLabel="Поиск задач"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+          returnKeyType="search"
+        />
+        <SegmentedControl options={statusOptions} value={status} onChange={setStatus} />
+      </View>
 
       <FlatList
-        data={tasks}
+        data={visibleTasks}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <TaskCard
-            task={item}
-            onPress={(id) => router.push({ pathname: '/task/[id]', params: { id } })}
-          />
+          <TaskCard task={item} onPress={(id) => router.push(routes.taskDetails(id))} />
         )}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={{ color: colors.subtitle }}>Список пока пуст</Text>
-          </View>
-        }
-        contentContainerStyle={tasks.length === 0 ? styles.emptyList : undefined}
+        ListEmptyComponent={emptyState}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
       />
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 12 },
+  controls: { paddingHorizontal: spacing.md, paddingTop: spacing.sm + spacing.xs },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: spacing.sm + spacing.xs,
   },
-  header: { fontSize: 22, fontWeight: '700' },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12 },
-  addButton: { marginHorizontal: 12, borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginBottom: 8 },
-  addButtonText: { color: '#fff', fontWeight: '600' },
-  emptyContainer: { alignItems: 'center', marginTop: 40 },
-  emptyList: { flexGrow: 1 },
+  header: { fontSize: fontSize.heading, fontWeight: '700' },
+  addButton: { marginBottom: spacing.sm + spacing.xs },
+  listContent: { flexGrow: 1, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
 });

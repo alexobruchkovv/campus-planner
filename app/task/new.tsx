@@ -1,33 +1,22 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import TaskForm from '../../src/components/TaskForm';
-import { useTasks } from '../../src/context/TasksContext';
-import { useTheme } from '../../src/context/ThemeContext';
-import { Task } from '../../src/types/task';
+import TaskForm from '../../src/components/task/TaskForm';
+import Screen from '../../src/components/ui/Screen';
+import { useTasks } from '../../src/hooks/useTasks';
+import { CreateTaskInput } from '../../src/types/task';
 
 export default function NewTaskScreen() {
   const router = useRouter();
-  const { addTask } = useTasks();
-  const { colors } = useTheme();
+  const { createTask } = useTasks();
 
-  const handleSubmit = (values: Pick<Task, 'title' | 'subject' | 'priority'>) => {
-    const newTask: Task = {
-      id: String(Date.now()),
-      ...values,
-      isCompleted: false,
-    };
-    addTask(newTask);
+  const handleSubmit = (input: CreateTaskInput) => {
+    createTask(input);
     router.back();
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <Screen scroll>
       <TaskForm submitLabel="Создать задачу" onSubmit={handleSubmit} />
-    </View>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-});

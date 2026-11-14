@@ -1,56 +1,52 @@
-import React, { createContext, useContext, useState } from 'react';
-import { Task } from '../types/task';
+import React, { createContext, useCallback, useMemo, useState } from 'react';
+import { createInitialTasks } from '../data/initialTasks';
+import { CreateTaskInput, Task, UpdateTaskInput } from '../types/task';
+import { applyTaskUpdate, buildTask, getNextStatus } from '../utils/task';
 
-interface TasksContextValue {
+export interface TasksContextValue {
   tasks: Task[];
-  addTask: (task: Task) => void;
-  updateTask: (id: string, updates: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
-  toggleStatus: (id: string) => void;
+  createTask: (input: CreateTaskInput) => Task;
+  updateTask: (id: string, input: UpdateTaskInput) => void;
+  removeTask: (id: string) => void;
+  toggleTaskStatus: (id: string) => void;
   getTaskById: (id: string) => Task | undefined;
 }
 
-const TasksContext = createContext<TasksContextValue | undefined>(undefined);
+export const TasksContext = createContext<TasksContextValue | undefined>(undefined);
 
-const initialTasks: Task[] = [
-  { id: '1', title: 'Сделать лабораторную по сетям', subject: 'Сети ЭВМ', priority: 'high', isCompleted: false },
-  { id: '2', title: 'Прочитать главу учебника', subject: 'Матанализ', priority: 'low', isCompleted: true },
-  { id: '3', title: 'Подготовить презентацию', subject: 'История', priority: 'medium', isCompleted: false },
-  { id: '4', title: 'Сдать отчёт по практике', subject: 'Программирование', priority: 'high', isCompleted: false },
-];
+const generateId = (): string => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 export function TasksProvider({ children }: { children: React.ReactNode }) {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>(() => createInitialTasks());
 
-  const addTask = (newTask: Task) => {
-    setTasks((prev) => [newTask, ...prev]);
-  };
+  const createTask = useCallback((input: CreateTaskInput) => {
+    const task = buildTask(input, generateId());
+    setTasks((prev) => [task, ...prev]);
+    return task;
+  }, []);
 
-  const updateTask = (id: string, updates: Partial<Task>) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
-  };
+  const updateTask = useCallback((id: string, input: UpdateTaskInput) => {
+    setTasks((prev) => prev.map((task) => (task.id === id ? applyTaskUpdate(task, input) : task)));
+  }, []);
 
-  const deleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-  };
+  const removeTask = useCallback((id: string) => {
+    setTasks((prev) => prev.filter((task) => task.id !== id));
+  }, []);
 
-  const toggleStatus = (id: string) => {
+  const toggleTaskStatus = useCallback((id: string) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, isCompleted: !t.isCompleted } : t))
+      prev.map((task) =>
+        task.id === id ? applyTaskUpdate(task, { status: getNextStatus(task.status) }) : task
+      )
     );
-  };
+  }, []);
 
-  const getTaskById = (id: string) => tasks.find((t) => t.id === id);
+  const getTaskById = useCallback((id: string) => tasks.find((task) => task.id === id), [tasks]);
 
-  return (
-    <TasksContext.Provider value={{ tasks, addTask, updateTask, deleteTask, toggleStatus, getTaskById }}>
-      {children}
-    </TasksContext.Provider>
+  const value = useMemo<TasksContextValue>(
+    () => ({ tasks, createTask, updateTask, removeTask, toggleTaskStatus, getTaskById }),
+    [tasks, createTask, updateTask, removeTask, toggleTaskStatus, getTaskById]
   );
-}
 
-export function useTasks() {
-  const ctx = useContext(TasksContext);
-  if (!ctx) throw new Error('useTasks must be used within TasksProvider');
-  return ctx;
+  return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;
 }

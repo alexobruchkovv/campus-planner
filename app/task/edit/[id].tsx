@@ -1,49 +1,28 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import TaskForm from '../../../src/components/TaskForm';
-import { useTasks } from '../../../src/context/TasksContext';
-import { useTheme } from '../../../src/context/ThemeContext';
-import { Task } from '../../../src/types/task';
+import TaskForm from '../../../src/components/task/TaskForm';
+import TaskNotFound from '../../../src/components/task/TaskNotFound';
+import Screen from '../../../src/components/ui/Screen';
+import { useTasks } from '../../../src/hooks/useTasks';
+import { routes, TaskRouteParams } from '../../../src/types/navigation';
+import { CreateTaskInput } from '../../../src/types/task';
 
 export default function EditTaskScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<TaskRouteParams>();
   const router = useRouter();
   const { getTaskById, updateTask } = useTasks();
-  const { colors } = useTheme();
 
   const task = getTaskById(id);
+  if (!task) return <TaskNotFound onBack={() => router.replace(routes.home)} />;
 
-  if (!task) {
-    return (
-      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.text, fontSize: 16, marginBottom: 16 }}>Задача не найдена</Text>
-        <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={() => router.replace('/')}>
-          <Text style={styles.buttonText}>Вернуться к списку</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const handleSubmit = (values: Pick<Task, 'title' | 'subject' | 'priority'>) => {
-    updateTask(task.id, values);
+  const handleSubmit = (input: CreateTaskInput) => {
+    updateTask(task.id, input);
     router.back();
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <TaskForm
-        initialValues={{ title: task.title, subject: task.subject, priority: task.priority }}
-        submitLabel="Сохранить изменения"
-        onSubmit={handleSubmit}
-      />
-    </View>
+    <Screen scroll>
+      <TaskForm initialValues={task} submitLabel="Сохранить изменения" onSubmit={handleSubmit} />
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  centered: { justifyContent: 'center', alignItems: 'center', padding: 16 },
-  button: { borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center' },
-  buttonText: { color: '#fff', fontWeight: '600' },
-});
