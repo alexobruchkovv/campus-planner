@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     padding: spacing.md,
-    marginBottom: spacing.sm,
+    // Внешний отступ задаёт обёртка SwipeableTaskCard: фон действий должен совпадать с карточкой по размеру.
     overflow: 'hidden',
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + spacing.xs },

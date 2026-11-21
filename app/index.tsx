@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
-import TaskCard from '../src/components/task/TaskCard';
+import SwipeableTaskCard from '../src/components/task/SwipeableTaskCard';
 import TaskProgress from '../src/components/task/TaskProgress';
 import TaskStatsBar from '../src/components/task/TaskStatsBar';
 import AppButton from '../src/components/ui/AppButton';
@@ -10,10 +10,11 @@ import AppInput from '../src/components/ui/AppInput';
 import EmptyState from '../src/components/ui/EmptyState';
 import Screen from '../src/components/ui/Screen';
 import SegmentedControl, { SegmentOption } from '../src/components/ui/SegmentedControl';
+import UndoBar from '../src/components/ui/UndoBar';
 import { useTasks } from '../src/hooks/useTasks';
 import { useTheme } from '../src/hooks/useTheme';
 import { confirmAction } from '../src/services/dialogs';
-import { listAnimations } from '../src/theme/motion';
+import { listAnimations, UNDO_TIMEOUT_MS } from '../src/theme/motion';
 import { fontSize, spacing } from '../src/theme/spacing';
 import { routes } from '../src/types/navigation';
 import { Task, TaskStatusFilter } from '../src/types/task';
@@ -26,24 +27,46 @@ const statusOptions: SegmentOption<TaskStatusFilter>[] = taskStatusFilters.map((
 
 export default function TaskListScreen() {
   const router = useRouter();
-  const { tasks, toggleTaskStatus, removeTask } = useTasks();
+  const { tasks, toggleTaskStatus, removeTask, restoreTask } = useTasks();
   const { colors } = useTheme();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<TaskStatusFilter>('all');
+  // Доп. задание: последняя удалённая задача хранится до конца сеанса (только в памяти),
+  // пока видна кнопка «Отменить».
+  const [lastDeleted, setLastDeleted] = useState<DeletedTask | null>(null);
 
   const stats = useMemo(() => countTasks(tasks), [tasks]);
   const visibleTasks = useMemo(() => selectVisibleTasks(tasks, { search, status }), [tasks, search, status]);
+
+  // Через 5 секунд плашка исчезает (exiting-анимация в UndoBar).
+  // Новое удаление меняет key — таймер перезапускается.
+  useEffect(() => {
+    if (!lastDeleted) return;
+    const timer = setTimeout(() => setLastDeleted(null), UNDO_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [lastDeleted]);
 
   const handleDelete = (task: Task) =>
     confirmAction(
       {
         title: 'Удалить задачу?',
-        message: `«${task.title}» будет удалена без возможности отмены.`,
+        message: `«${task.title}» будет удалена. Отменить можно в течение 5 секунд.`,
         confirmLabel: 'Удалить',
         destructive: true,
       },
-      () => removeTask(task.id)
+      () => {
+        // Запоминаем позицию в исходном массиве, чтобы вернуть задачу туда же.
+        const index = tasks.findIndex((item) => item.id === task.id);
+        removeTask(task.id);
+        setLastDeleted({ task, index, key: Date.now() });
+      }
     );
+
+  const handleUndo = () => {
+    if (!lastDeleted) return;
+    restoreTask(lastDeleted.task, lastDeleted.index);
+    setLastDeleted(null);
+  };
 
   const resetFilters = () => {
     setSearch('');
@@ -101,7 +124,8 @@ export default function TaskListScreen() {
           // Layout-анимации появления/удаления. Задача удаляется из состояния сразу,
           // а exiting проигрывается на «снимке» карточки и ничего не блокирует.
           <Animated.View entering={listAnimations.entering} exiting={listAnimations.exiting}>
-            <TaskCard
+            {/* Свайп вправо — статус, влево — удаление с подтверждением (ЛР №5). */}
+            <SwipeableTaskCard
               task={item}
               onOpen={(id) => router.push(routes.taskDetails(id))}
               onEdit={(id) => router.push(routes.editTask(id))}
@@ -115,9 +139,19 @@ export default function TaskListScreen() {
         // При первом открытии экрана карточки не «въезжают» — анимируются только изменения.
         skipEnteringExitingAnimations
         ListEmptyComponent={emptyState}
-        contentContainerStyle={styles.listContent}
+        // Пока видна плашка «Отменить», добавляем место снизу, чтобы она не закрывала последнюю карточку.
+        contentContainerStyle={[styles.listContent, lastDeleted && styles.listContentWithUndo]}
         keyboardShouldPersistTaps="handled"
       />
+
+      {lastDeleted && (
+        <UndoBar
+          key={lastDeleted.key}
+          message={`Задача «${lastDeleted.task.title}» удалена`}
+          duration={UNDO_TIMEOUT_MS}
+          onUndo={handleUndo}
+        />
+      )}
     </Screen>
   );
 }
@@ -133,4 +167,13 @@ const styles = StyleSheet.create({
   header: { fontSize: fontSize.heading, fontWeight: '700' },
   addButton: { marginBottom: spacing.sm + spacing.xs },
   listContent: { flexGrow: 1, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  listContentWithUndo: { paddingBottom: 96 },
 });
+
+interface DeletedTask {
+  task: Task;
+  /** Позиция в исходном массиве задач до удаления. */
+  index: number;
+  /** Уникален для каждого удаления: перезапускает таймер и анимацию плашки. */
+  key: number;
+}

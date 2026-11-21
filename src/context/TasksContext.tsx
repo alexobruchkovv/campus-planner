@@ -8,6 +8,8 @@ export interface TasksContextValue {
   createTask: (input: CreateTaskInput) => Task;
   updateTask: (id: string, input: UpdateTaskInput) => void;
   removeTask: (id: string) => void;
+  /** Возвращает удалённую задачу на прежнее место в списке (кнопка «Отменить»). */
+  restoreTask: (task: Task, index: number) => void;
   toggleTaskStatus: (id: string) => void;
   getTaskById: (id: string) => Task | undefined;
 }
@@ -33,6 +35,15 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     setTasks((prev) => prev.filter((task) => task.id !== id));
   }, []);
 
+  const restoreTask = useCallback((task: Task, index: number) => {
+    setTasks((prev) => {
+      if (prev.some((item) => item.id === task.id)) return prev; // уже восстановлена
+      const next = [...prev];
+      next.splice(Math.min(Math.max(index, 0), next.length), 0, task);
+      return next;
+    });
+  }, []);
+
   const toggleTaskStatus = useCallback((id: string) => {
     setTasks((prev) =>
       prev.map((task) =>
@@ -44,8 +55,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const getTaskById = useCallback((id: string) => tasks.find((task) => task.id === id), [tasks]);
 
   const value = useMemo<TasksContextValue>(
-    () => ({ tasks, createTask, updateTask, removeTask, toggleTaskStatus, getTaskById }),
-    [tasks, createTask, updateTask, removeTask, toggleTaskStatus, getTaskById]
+    () => ({ tasks, createTask, updateTask, removeTask, restoreTask, toggleTaskStatus, getTaskById }),
+    [tasks, createTask, updateTask, removeTask, restoreTask, toggleTaskStatus, getTaskById]
   );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

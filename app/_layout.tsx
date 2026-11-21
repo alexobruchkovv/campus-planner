@@ -1,4 +1,6 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -31,12 +33,20 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <TasksProvider>
-          <RootLayoutNav />
-        </TasksProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    // Корневой контейнер жестов: без него GestureDetector не получает касаний.
+    // Он должен быть как можно выше в дереве и растянут на весь экран.
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <TasksProvider>
+            <RootLayoutNav />
+          </TasksProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});
