@@ -15,6 +15,7 @@ export function createInitialTasks(now: Date = new Date()): Task[] {
       status: 'active',
       createdAt: daysAgo(3),
       dueDate: inDays(2),
+      description: 'Настроить VLAN в Cisco Packet Tracer и оформить отчёт со скриншотами.',
     },
     {
       id: '2',
@@ -32,6 +33,7 @@ export function createInitialTasks(now: Date = new Date()): Task[] {
       status: 'active',
       createdAt: daysAgo(7),
       dueDate: inDays(-1),
+      description: '10–12 слайдов о реформах Петра I, выступление на 7 минут.',
     },
     {
       id: '4',

@@ -22,6 +22,9 @@ export default function TaskDetailsCard({ task, children }: TaskDetailsCardProps
     <Card>
       <Text style={[styles.title, { color: colors.text }]}>{task.title}</Text>
       <Text style={[styles.subject, { color: colors.subtitle }]}>{task.subject}</Text>
+      {task.description ? (
+        <Text style={[styles.description, { color: colors.text }]}>{task.description}</Text>
+      ) : null}
 
       <View style={styles.meta}>
         <PriorityBadge priority={task.priority} />
@@ -38,6 +41,7 @@ export default function TaskDetailsCard({ task, children }: TaskDetailsCardProps
 const styles = StyleSheet.create({
   title: { fontSize: fontSize.title, fontWeight: '700' },
   subject: { fontSize: fontSize.body + 1, marginTop: spacing.xs },
+  description: { fontSize: fontSize.body, marginTop: spacing.sm, lineHeight: 20 },
   meta: { marginTop: spacing.sm + spacing.xs, gap: spacing.xs + 2 },
   actions: { marginTop: spacing.md, gap: spacing.sm + 2 },
 });

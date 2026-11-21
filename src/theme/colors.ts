@@ -14,6 +14,8 @@ export interface ThemeColors {
   danger: string;
   onAccent: string;
   success: string;
+  /** Мягкий фон карточки выполненной задачи. */
+  successSoft: string;
   warning: string;
 }
 
@@ -29,6 +31,7 @@ const light: ThemeColors = {
   danger: '#e53935',
   onAccent: '#ffffff',
   success: '#43a047',
+  successSoft: '#edf7ee',
   warning: '#fb8c00',
 };
 
@@ -44,6 +47,7 @@ const dark: ThemeColors = {
   danger: '#ef5350',
   onAccent: '#ffffff',
   success: '#66bb6a',
+  successSoft: '#1c2b1d',
   warning: '#ffa726',
 };
 

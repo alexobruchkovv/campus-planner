@@ -62,6 +62,14 @@ export default function TaskForm({ initialValues, submitLabel, onSubmit }: TaskF
         error={errors.dueDate}
         hint="Например: 2026-12-01"
       />
+      <AppInput
+        label="Описание (необязательно)"
+        value={draft.description}
+        onChangeText={(text) => setField('description', text)}
+        placeholder="Что именно нужно сделать"
+        multiline
+        style={styles.multiline}
+      />
       <SegmentedControl
         label="Приоритет"
         options={priorityOptions}
@@ -75,4 +83,5 @@ export default function TaskForm({ initialValues, submitLabel, onSubmit }: TaskF
 
 const styles = StyleSheet.create({
   submit: { marginTop: spacing.xs },
+  multiline: { minHeight: 72, textAlignVertical: 'top' },
 });

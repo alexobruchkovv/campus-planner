@@ -114,6 +114,7 @@ export function inputToDraft(values?: Partial<CreateTaskInput>): TaskDraft {
     subject: values?.subject ?? '',
     priority: values?.priority ?? 'medium',
     dueDate: values?.dueDate ?? '',
+    description: values?.description ?? '',
   };
 }
 
@@ -137,10 +138,32 @@ export function hasErrors(errors: TaskDraftErrors): boolean {
 
 export function draftToInput(draft: TaskDraft): CreateTaskInput {
   const dueDate = draft.dueDate.trim();
+  const description = draft.description.trim();
   return {
     title: draft.title.trim(),
     subject: draft.subject.trim(),
     priority: draft.priority,
     dueDate: dueDate || undefined,
+    description: description || undefined,
   };
+}
+
+// ---------- Прогресс и анимации ----------
+
+/** Доля выполненных задач в диапазоне [0, 1]. Пустой список — нулевой прогресс. */
+export function getCompletionRatio({ total, completed }: Pick<TaskStats, 'total' | 'completed'>): number {
+  if (total <= 0) return 0;
+  return Math.min(Math.max(completed / total, 0), 1);
+}
+
+/** Задача создана только что — карточку стоит кратко подсветить при появлении. */
+export function isRecentlyCreated(
+  task: Pick<Task, 'createdAt'>,
+  now: Date = new Date(),
+  windowMs = 3000
+): boolean {
+  const created = new Date(task.createdAt).getTime();
+  if (Number.isNaN(created)) return false;
+  const age = now.getTime() - created;
+  return age >= 0 && age <= windowMs;
 }
